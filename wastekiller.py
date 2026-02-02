@@ -20,8 +20,7 @@ st.caption(
 # Defaults
 # =====================
 DEFAULT_ACOS_MULTIPLIER = 4.0
-DEFAULT_NO_SALES_CLICKS = 50
-DEFAULT_MIN_CLICKS_FOR_ACOS_RULE = 10
+MIN_CLICKS_THRESHOLD = 50  # 🔒 mínimo fijo de evidencia
 
 ALLOWED_ENTITIES = {"keyword", "product targeting"}  # ✅ Blindaje principal
 
@@ -323,13 +322,6 @@ with c2:
         "Pausar si 0 ventas y clics ≥",
         min_value=1, max_value=10000,
         value=int(DEFAULT_NO_SALES_CLICKS),
-        step=5
-    )
-with c3:
-    min_clicks_acos_rule = st.number_input(
-        "Aplicar regla de ACOS alto solo si clics ≥",
-        min_value=0, max_value=10000,
-        value=int(DEFAULT_MIN_CLICKS_FOR_ACOS_RULE),
         step=5
     )
 
