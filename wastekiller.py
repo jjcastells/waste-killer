@@ -21,6 +21,7 @@ st.caption(
 # =====================
 DEFAULT_ACOS_MULTIPLIER = 4.0
 MIN_CLICKS_THRESHOLD = 50  # 🔒 mínimo fijo de evidencia
+NO_SALES_CLICKS_THRESHOLD = MIN_CLICKS_THRESHOLD
 
 ALLOWED_ENTITIES = {"keyword", "product targeting"}  # ✅ Blindaje principal
 
@@ -321,7 +322,7 @@ with c2:
     no_sales_clicks = st.number_input(
         "Pausar si 0 ventas y clics ≥",
         min_value=1, max_value=10000,
-        value=int(DEFAULT_NO_SALES_CLICKS),
+        value=int(NO_SALES_CLICKS_THRESHOLD),
         step=5
     )
 
