@@ -367,6 +367,16 @@ else:
 df_targets["Clicks"] = pd.to_numeric(df_targets.get("Clicks", 0), errors="coerce").fillna(0.0)
 df_targets["Orders"] = pd.to_numeric(df_targets.get("Orders", 0), errors="coerce").fillna(0.0)
 
+# 🔒 Filtro duro: solo evaluar targets con suficiente evidencia
+df_targets = df_targets[df_targets["Clicks"] >= MIN_CLICKS_THRESHOLD].copy()
+
+if df_targets.empty:
+    st.warning(
+        f"No hay keywords o product targets con al menos {MIN_CLICKS_THRESHOLD} clics. "
+        "No se aplican reglas de higiene."
+    )
+    st.stop()
+
 # =====================
 # ACOS_ref (solo dos modos)
 # =====================
@@ -395,7 +405,7 @@ if ref_mode == "ACOS de la propia campaña" and not have_campaign:
 # =====================
 # Reglas de pausa
 # =====================
-rule_no_sales = (df_targets["Orders"] <= 0) & (df_targets["Clicks"] >= float(no_sales_clicks))
+rule_no_sales = (df_targets["Orders"] <= 0)
 
 acos_val = pd.to_numeric(df_targets["ACOS"], errors="coerce")
 valid_acos = (acos_val > 0)
@@ -404,7 +414,6 @@ if ref_mode.startswith("ACOS global"):
     rule_acos_high = (
         (acos_ref_global_sp > 0) &
         valid_acos &
-        (df_targets["Clicks"] >= float(min_clicks_acos_rule)) &
         (acos_val >= float(acos_multiplier) * float(acos_ref_global_sp))
     )
     df_targets["ACOS_ref"] = float(acos_ref_global_sp)
@@ -425,10 +434,9 @@ else:
     df_targets["ACOS_ref"] = df_targets[campaign_key].astype(str).map(ref_map).fillna(0.0)
 
     rule_acos_high = (
-        (df_targets["ACOS_ref"] > 0) &
+        (acos_ref_global_sp > 0) &
         valid_acos &
-        (df_targets["Clicks"] >= float(min_clicks_acos_rule)) &
-        (acos_val >= float(acos_multiplier) * df_targets["ACOS_ref"])
+        (acos_val >= float(acos_multiplier) * float(acos_ref_global_sp))
     )
 
 df_targets["Pausar"] = rule_no_sales | rule_acos_high
