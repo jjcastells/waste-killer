@@ -302,7 +302,7 @@ st.subheader("🧼 Reglas de higiene")
 t1, t2 = st.columns([1, 2])
 with t1:
     timeframe_days = st.selectbox(
-        "Timeframe del reporte",
+        "Timeframe del reporte (días)",
         options=[7, 14, 30, 60],
         index=2,  # 30 por defecto
         help="Selecciona los días que cubre el reporte que has exportado (7/14/30/60)."
