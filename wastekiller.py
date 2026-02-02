@@ -298,6 +298,18 @@ st.dataframe(df.head(30), use_container_width=True)
 st.divider()
 st.subheader("🧼 Reglas de higiene")
 
+# ✅ Timeframe para contextualizar el ahorro
+t1, t2 = st.columns([1, 2])
+with t1:
+    timeframe_days = st.selectbox(
+        "Timeframe del reporte",
+        options=[7, 14, 30, 60],
+        index=2,  # 30 por defecto
+        help="Selecciona los días que cubre el reporte que has exportado (7/14/30/60)."
+    )
+with t2:
+    st.caption("Esto se usa SOLO para estimar el ahorro mensual normalizando el gasto del periodo a 30 días.")
+
 c1, c2, c3 = st.columns(3)
 with c1:
     acos_multiplier = st.number_input(
@@ -482,6 +494,24 @@ df_pause = df_targets[df_targets["Pausar"]].copy()
 if df_pause.empty:
     st.warning("No hay pausas sugeridas con las reglas actuales.")
     st.stop()
+# =====================
+# ✅ Ahorro estimado (normalizado a 30 días)
+# =====================
+spend_pause_period = float(df_pause["Spend"].sum()) if "Spend" in df_pause.columns else 0.0
+# Evita división por 0
+tf = max(int(timeframe_days), 1)
+estimated_monthly_savings = spend_pause_period * (30.0 / tf)
+
+# Prepara una columna "Target" legible (keyword o ASIN/targeting)
+if "Keyword/Target" in df_pause.columns:
+    df_pause["Target"] = df_pause["Keyword/Target"].astype(str)
+elif "Texto de palabra clave" in df_pause.columns:
+    df_pause["Target"] = df_pause["Texto de palabra clave"].astype(str)
+else:
+    df_pause["Target"] = ""
+
+# Si es product targeting, muchas veces el "texto" puede venir como ASIN o expresión.
+# Ya lo estás guardando en Keyword/Target si mapeó bien; si no, igual queda vacío.
 
 rows = []
 for _, base in df_pause.iterrows():
