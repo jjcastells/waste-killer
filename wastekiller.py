@@ -10,10 +10,10 @@ from datetime import datetime
 # Configuración página
 # =====================
 st.set_page_config(page_title="BidForest Hygiene — Keyword Pauser", page_icon="🎯", layout="wide")
-st.title("🎯 ACOS Killer — Detecta y elimina keywords que disparan el ACOS")
+st.title("🎯 ACOS Killer — Detecta y elimina keywords que disparan tu ACOS")
 st.caption(
-    "Sube tu archivo (bulksheet/performance). Detecto keywords/targets para pausar por ACOS extremo o por cero ventas con muchos clics. "
-    "Exporto un bulksheet con las pausas."
+    "Sube tu archivo (bulksheet). Detecto keywords/targets para pausar por ACOS extremo o por cero ventas con muchos clics. "
+    "Exporto un bulksheet accionable en bloque con las pausas."
 )
 
 # =====================
