@@ -9,7 +9,7 @@ from datetime import datetime
 # =====================
 # Configuración página
 # =====================
-st.set_page_config(page_title="BidForest Hygiene — Keyword Pauser", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="ACOS Killer — Keyword Pauser", page_icon="🎯", layout="wide")
 st.title("🎯 ACOS Killer — Detecta y elimina keywords que disparan tu ACOS")
 st.caption(
     "Sube tu archivo (bulksheet). Detecto keywords/targets para pausar por ACOS extremo o por cero ventas con muchos clics. "
@@ -109,7 +109,7 @@ def find_col_contains(df: pd.DataFrame, needles: list[str]):
 
 def sanitize_sheet_name(name: str) -> str:
     cleaned = re.sub(r'[:\\/?*\[\]]', '-', name)
-    cleaned = cleaned.strip() or 'HYGIENE'
+    cleaned = cleaned.strip() or 'ACOS_KILLER'
     return cleaned[:31]
 
 def canon_entity_value(v: str) -> str:
@@ -298,13 +298,12 @@ st.dataframe(df.head(30), use_container_width=True)
 st.divider()
 st.subheader("🧼 Reglas de higiene")
 
-# ✅ Timeframe para contextualizar el ahorro
 t1, t2 = st.columns([1, 2])
 with t1:
     timeframe_days = st.selectbox(
         "Timeframe del reporte (días)",
         options=[7, 14, 30, 60],
-        index=2,  # 30 por defecto
+        index=2,
         help="Selecciona los días que cubre el reporte que has exportado (7/14/30/60)."
     )
 with t2:
@@ -345,18 +344,16 @@ if not {"Spend", "Sales"}.issubset(df.columns):
     st.info("Columnas: " + " | ".join(df.columns.astype(str).tolist()))
     st.stop()
 
-# ✅ Blindaje: SOLO keyword/product targeting por Entity (si existe)
 if "Entity" in df.columns:
     df_targets = df[df["Entity"].isin(ALLOWED_ENTITIES)].copy()
 else:
-    # fallback si no existe Entity
     df_targets = df[df.apply(is_target_row, axis=1)].copy()
 
 if df_targets.empty:
     st.error("No detecto filas con Entity = keyword / product targeting.")
     st.stop()
 
-# ACOS por fila (derivado si falta o si <=0)
+# ACOS por fila
 acos_row = np.where(df_targets["Sales"] > 0, df_targets["Spend"] / df_targets["Sales"], np.nan)
 if "ACOS" not in df_targets.columns:
     df_targets["ACOS"] = acos_row
@@ -368,7 +365,6 @@ else:
 df_targets["Clicks"] = pd.to_numeric(df_targets.get("Clicks", 0), errors="coerce").fillna(0.0)
 df_targets["Orders"] = pd.to_numeric(df_targets.get("Orders", 0), errors="coerce").fillna(0.0)
 
-# 🔒 Filtro duro: solo evaluar targets con suficiente evidencia
 df_targets = df_targets[df_targets["Clicks"] >= MIN_CLICKS_THRESHOLD].copy()
 
 if df_targets.empty:
@@ -379,14 +375,13 @@ if df_targets.empty:
     st.stop()
 
 # =====================
-# ACOS_ref (solo dos modos)
+# ACOS_ref
 # =====================
 def acos_weighted(sub: pd.DataFrame) -> float:
     sp = float(sub["Spend"].sum())
     sa = float(sub["Sales"].sum())
     return (sp / sa) if sa > 0 else 0.0
 
-# referencia global SP (toda la hoja, pero SOLO targets)
 if "Product" in df_targets.columns:
     sp_all = df_targets[df_targets["Product"].astype(str).str.lower().eq("sponsored products")].copy()
 else:
@@ -406,14 +401,14 @@ if ref_mode == "ACOS de la propia campaña" and not have_campaign:
 # =====================
 # Reglas de pausa
 # =====================
-rule_no_sales = (df_targets["Orders"] <= 0)
+rule_no_sales = (df_targets["Orders"] <= 0) & (df_targets["Clicks"] >= float(no_sales_clicks))
 
 acos_val = pd.to_numeric(df_targets["ACOS"], errors="coerce")
 valid_acos = (acos_val > 0)
 
 if ref_mode.startswith("ACOS global"):
     rule_acos_high = (
-        (acos_ref_global_sp > 0) &
+        (float(acos_ref_global_sp) > 0.0) &
         valid_acos &
         (acos_val >= float(acos_multiplier) * float(acos_ref_global_sp))
     )
@@ -435,9 +430,9 @@ else:
     df_targets["ACOS_ref"] = df_targets[campaign_key].astype(str).map(ref_map).fillna(0.0)
 
     rule_acos_high = (
-        (acos_ref_global_sp > 0) &
+        (df_targets["ACOS_ref"].astype(float) > 0.0) &
         valid_acos &
-        (acos_val >= float(acos_multiplier) * float(acos_ref_global_sp))
+        (acos_val >= float(acos_multiplier) * df_targets["ACOS_ref"].astype(float))
     )
 
 df_targets["Pausar"] = rule_no_sales | rule_acos_high
@@ -479,10 +474,10 @@ st.dataframe(
 )
 
 # =====================
-# Export bulksheet (solo pausas)
+# Export (bulksheet + detalle)
 # =====================
 st.divider()
-st.subheader("💾 Exportar bulksheet (solo pausas)")
+st.subheader("💾 Exportar")
 
 required_common = ["Product", "Entity", "Campaign ID", "Ad Group ID"]
 if not all(col in df.columns for col in required_common):
@@ -495,15 +490,18 @@ df_pause = df_targets[df_targets["Pausar"]].copy()
 if df_pause.empty:
     st.warning("No hay pausas sugeridas con las reglas actuales.")
     st.stop()
-# =====================
+
 # ✅ Ahorro estimado (normalizado a 30 días)
-# =====================
 spend_pause_period = float(df_pause["Spend"].sum()) if "Spend" in df_pause.columns else 0.0
-# Evita división por 0
 tf = max(int(timeframe_days), 1)
 estimated_monthly_savings = spend_pause_period * (30.0 / tf)
 
-# Prepara una columna "Target" legible (keyword o ASIN/targeting)
+st.info(
+    f"💡 **Ahorro estimado (normalizado a 30 días):** {estimated_monthly_savings:,.2f} €  "
+    f"(Gasto pausado en {tf} días: {spend_pause_period:,.2f} €)"
+)
+
+# Target legible
 if "Keyword/Target" in df_pause.columns:
     df_pause["Target"] = df_pause["Keyword/Target"].astype(str)
 elif "Texto de palabra clave" in df_pause.columns:
@@ -511,9 +509,7 @@ elif "Texto de palabra clave" in df_pause.columns:
 else:
     df_pause["Target"] = ""
 
-# Si es product targeting, muchas veces el "texto" puede venir como ASIN o expresión.
-# Ya lo estás guardando en Keyword/Target si mapeó bien; si no, igual queda vacío.
-
+# 1) Bulksheet en bloque
 rows = []
 for _, base in df_pause.iterrows():
     ent_l = canon_entity_value(base.get("Entity", ""))
@@ -549,16 +545,63 @@ ordered = ["Product", "Entity", "Operation", "Campaign ID", "Ad Group ID", "Keyw
 present = [c for c in ordered if c in bulk_out.columns]
 bulk_out = bulk_out[present]
 
-sheet_name = sanitize_sheet_name(f"HYGIENE {datetime.now().strftime('%d-%m-%Y')}")
-output = BytesIO()
-with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    bulk_out.to_excel(writer, index=False, sheet_name=sheet_name)
+sheet_name_bulk = sanitize_sheet_name(f"ACOS_KILLER {datetime.now().strftime('%d-%m-%Y')}")
 
-st.dataframe(bulk_out.head(50), use_container_width=True)
+output_bulk = BytesIO()
+with pd.ExcelWriter(output_bulk, engine="openpyxl") as writer:
+    bulk_out.to_excel(writer, index=False, sheet_name=sheet_name_bulk)
 
-st.download_button(
-    label="⬇️ Descargar BidForest_Hygiene_Pause.xlsx",
-    data=output.getvalue(),
-    file_name="BidForest_Hygiene_Pause.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-)
+# 2) Detalle (keyword/target + motivo)
+detail_cols = [
+    "Target",
+    "Motivo",
+    "Clicks", "Orders", "Spend", "Sales", "ACOS", "ACOS_ref",
+    "Product", "Entity",
+    "Campaign Name", "Ad Group Name",
+    "Campaign ID", "Ad Group ID",
+    "Keyword ID", "Product Targeting ID"
+]
+detail_cols = [c for c in detail_cols if c in df_pause.columns]
+
+df_details = df_pause.copy()
+
+for maybe_name, id_col in [("Campaign Name", "Campaign ID"), ("Ad Group Name", "Ad Group ID")]:
+    if maybe_name not in df_details.columns and id_col in df_details.columns:
+        df_details[maybe_name] = ""
+
+df_details = df_details[detail_cols].copy()
+
+sort_cols = [c for c in ["Spend", "Clicks"] if c in df_details.columns]
+if sort_cols:
+    df_details = df_details.sort_values(sort_cols, ascending=[False] * len(sort_cols))
+
+sheet_name_details = sanitize_sheet_name(f"ACOS_KILLER_DETAIL {datetime.now().strftime('%d-%m-%Y')}")
+
+output_details = BytesIO()
+with pd.ExcelWriter(output_details, engine="openpyxl") as writer:
+    df_details.to_excel(writer, index=False, sheet_name=sheet_name_details)
+
+# Preview + botones
+p1, p2 = st.columns(2)
+
+with p1:
+    st.markdown("### 1) Bulksheet (cambios en bloque)")
+    st.dataframe(bulk_out.head(50), use_container_width=True)
+    st.download_button(
+        label="⬇️ Descargar ACOS_Killer_Pause.xlsx",
+        data=output_bulk.getvalue(),
+        file_name="ACOS_Killer_Pause.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="dl_acos_killer_bulk_pause",
+    )
+
+with p2:
+    st.markdown("### 2) Listado detallado (keyword/target + motivo)")
+    st.dataframe(df_details.head(50), use_container_width=True)
+    st.download_button(
+        label="⬇️ Descargar ACOS_Killer_Pause_Detail.xlsx",
+        data=output_details.getvalue(),
+        file_name="ACOS_Killer_Pause_Detail.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="dl_acos_killer_detail_pause",
+    )
