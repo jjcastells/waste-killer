@@ -10,6 +10,37 @@ from datetime import datetime
 # Configuración página
 # =====================
 st.set_page_config(page_title="ACOS Killer — Keyword Pauser", page_icon="🎯", layout="wide")
+
+# =====================
+# Gate de acceso (Secrets)
+# =====================
+if "unlocked" not in st.session_state:
+    st.session_state.unlocked = False
+
+if not st.session_state.unlocked:
+    st.title("🔒 ACOS Killer — Keyword Pauser")
+    st.caption("Introduce el código de acceso para desbloquear la herramienta.")
+
+    code = st.text_input("Access code", type="password")
+
+    if st.button("Unlock"):
+        # Soporta 1 código (ACCESS_CODE) o lista (ACCESS_CODES)
+        valid_single = st.secrets.get("ACCESS_CODE", None)
+        valid_list = st.secrets.get("ACCESS_CODES", [])
+
+        is_valid = (valid_single is not None and code == valid_single) or (code in valid_list)
+
+        if is_valid:
+            st.session_state.unlocked = True
+            st.rerun()
+        else:
+            st.error("Código incorrecto.")
+
+    st.stop()
+
+# =====================
+# Contenido normal (solo tras unlock)
+# =====================
 st.title("🎯 ACOS Killer — Detecta y elimina keywords que disparan tu ACOS")
 st.caption(
     "Sube tu archivo (bulksheet). Detecto keywords/targets para pausar por ACOS extremo o por cero ventas con muchos clics. "
@@ -19,6 +50,7 @@ st.caption(
 # =====================
 # Defaults
 # =====================
+
 DEFAULT_ACOS_MULTIPLIER = 4.0
 MIN_CLICKS_THRESHOLD = 50  # 🔒 mínimo fijo de evidencia
 NO_SALES_CLICKS_THRESHOLD = MIN_CLICKS_THRESHOLD
