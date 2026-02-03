@@ -23,8 +23,11 @@ if not st.session_state.unlocked:
 
     code = st.text_input("Access code", type="password")
 
-    if st.button("Unlock"):
-        # Soporta 1 código (ACCESS_CODE) o lista (ACCESS_CODES)
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        unlock = st.button("Unlock")
+
+    if unlock:
         valid_single = st.secrets.get("ACCESS_CODE", None)
         valid_list = st.secrets.get("ACCESS_CODES", [])
 
@@ -35,6 +38,19 @@ if not st.session_state.unlocked:
             st.rerun()
         else:
             st.error("Código incorrecto.")
+
+    # --- CTA secundario (tipo 'forgot password') ---
+    st.markdown(
+        """
+        <div style="margin-top: 12px; font-size: 0.9em;">
+            ¿No tienes código?
+            <a href="https://ppcjordi.com/acoskiller" target="_blank">
+                Accede aquí
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     st.stop()
 
