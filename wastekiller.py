@@ -44,7 +44,7 @@ if not st.session_state.unlocked:
         """
         <div style="margin-top: 12px; font-size: 0.9em;">
             ¿No tienes código?
-            <a href="https://ppcjordi.com/acoskiller" target="_blank">
+            <a href="https://ppcjordi.com/acos-killer" target="_blank">
                 Accede aquí
             </a>
         </div>
